@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Data Submission</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #itemList {
+            margin-top: 20px;
+        }
+        #itemList ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #itemList ul li {
+            background-color: #f9f9f9;
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Financial Data Submission</h2>
+<label for="companyName">Company Name:</label>
+<input type="text" id="companyName" name="companyName">
+<button id="setCompanyNameBtn">Set Company Name</button>
+<button id="openModalBtn" style="display: none;">Add Financial Data</button>
+
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <form id="dataForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="link">Link:</label>
+                <input type="url" id="link" name="link">
+            </div>
+            <div class="form-group">
+                <label for="file">Upload File:</label>
+                <input type="file" id="file" name="file">
+            </div>
+            <div class="form-group">
+                <label for="cashFlow">Cash Flow:</label>
+                <input type="text" id="cashFlow" name="cashFlow" required>
+            </div>
+            <div class="form-group">
+                <label for="balanceSheet">Balance Sheet:</label>
+                <input type="text" id="balanceSheet" name="balanceSheet" required>
+            </div>
+            <div class="form-group">
+                <label for="incomeStatement">Income Statement:</label>
+                <input type="text" id="incomeStatement" name="incomeStatement" required>
+            </div>
+            <button type="button" id="okBtn">OK</button>
+        </form>
+    </div>
+</div>
+
+<div id="itemList">
+    <h3>Added Items:</h3>
+    <ul id="items"></ul>
+</div>
+
+<button id="submitBtn">Submit</button>
+
+<div id="successModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="successClose">&times;</span>
+        <div id="successContent"></div>
+    </div>
+</div>
+
+<script>
+    let items = [];
+    let companyName = '';
+
+    document.getElementById('setCompanyNameBtn').onclick = function() {
+        companyName = document.getElementById('companyName').value;
+        if (!companyName) {
+            alert('Please enter a company name.');
+        } else {
+            document.getElementById('companyName').disabled = true;
+            document.getElementById('setCompanyNameBtn').disabled = true;
+            document.getElementById('openModalBtn').style.display = "inline-block";
+        }
+    }
+
+    document.getElementById('openModalBtn').onclick = function() {
+        document.getElementById('myModal').style.display = "block";
+    }
+
+    document.getElementsByClassName('close')[0].onclick = function() {
+        document.getElementById('myModal').style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('myModal')) {
+            document.getElementById('myModal').style.display = "none";
+        }
+    }
+
+    document.getElementById('okBtn').onclick = async function() {
+        const link = document.getElementById('link').value;
+        const fileInput = document.getElementById('file');
+        const cashFlow = document.getElementById('cashFlow').value;
+        const balanceSheet = document.getElementById('balanceSheet').value;
+        const incomeStatement = document.getElementById('incomeStatement').value;
+
+        if (!link && !fileInput.files.length) {
+            alert('Please provide either a link or upload a file.');
+            return;
+        }
+
+        let item = { companyName, cashFlow, balanceSheet, incomeStatement };
+
+        if (link) {
+            try {
+                const response = await fetch(link);
+                if (!response.ok) {
+                    alert('Failed to download the file from the link.');
+                    return;
+                }
+                const blob = await response.blob();
+                const file = new File([blob], link.split('/').pop());
+                item.file = file;
+                item.filename = file.name;
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Failed to download the file from the link.');
+                return;
+            }
+        } else if (fileInput.files.length) {
+            const file = fileInput.files[0];
+            item.file = file;
+            item.filename = file.name;
+        }
+
+        addItemToList(item);
+
+        document.getElementById('dataForm').reset();
+        document.getElementById('myModal').style.display = "none";
+    }
+
+    function addItemToList(item) {
+        items.push(item);
+
+        const itemElement = document.createElement('li');
+        itemElement.textContent = `Company: ${item.companyName}, Filename: ${item.filename}, Cash Flow: ${item.cashFlow}, Balance Sheet: ${item.balanceSheet}, Income Statement: ${item.incomeStatement}`;
+        document.getElementById('items').appendChild(itemElement);
+    }
+
+    document.getElementById('submitBtn').onclick = function() {
+        const formData = new FormData();
+
+        items.forEach((item, index) => {
+            formData.append(`files`, item.file);
+            formData.append(`data[${item.filename}][companyName]`, item.companyName); // Include companyName in data
+            formData.append(`data[${item.filename}][cashFlow]`, item.cashFlow);
+            formData.append(`data[${item.filename}][balanceSheet]`, item.balanceSheet);
+            formData.append(`data[${item.filename}][incomeStatement]`, item.incomeStatement);
+        });
+
+        fetch('/process_pdfs', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(result => {
+            document.getElementById('successContent').innerHTML = result;
+            document.getElementById('successModal').style.display = "block";
+            items = [];
+            document.getElementById('items').innerHTML = '';
+            document.getElementById('companyName').disabled = false;
+            document.getElementById('companyName').value = '';
+            document.getElementById('setCompanyNameBtn').disabled = false;
+            document.getElementById('openModalBtn').style.display = "none";
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+    document.getElementById('successClose').onclick = function() {
+        document.getElementById('successModal').style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('successModal')) {
+            document.getElementById('successModal').style.display = "none";
+        }
+    }
+</script>
+
+</body>
+</html>
